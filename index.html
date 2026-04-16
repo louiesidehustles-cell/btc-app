@@ -259,28 +259,63 @@ async function loadPrices(){
 }
 
 // HISTORY
-async function loadHistory(){
-    const res = await fetch("/history?t="+Date.now())
-    const data = await res.json()
+async function loadHistory() {
+    try{
+        const res = await fetch("/history?t="+Date.now())
+        const data = await res.json()
 
-    let html=""
+        const container = document.getElementById("historyContent")
+        container.innerHTML = ""
 
-    Object.keys(data).reverse().forEach(date=>{
-        html += `<h4>${date}</h4><table>`
-        data[date].forEach(t=>{
-            let cls = t.profit>=0?"green":"red"
-            html += `
+        // sort newest first
+        Object.keys(data).sort().reverse().forEach(date => {
+
+            let trades = data[date]
+
+            let html = `
+            <div class="date-header">${date}</div>
+            <table>
             <tr>
-            <td>${t.symbol}</td>
-            <td class="${cls}">${t.profit}</td>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Dir</th>
+                <th>Entry</th>
+                <th>SL</th>
+                <th>TP</th>
+                <th>Risk</th>
+                <th>PnL</th>
             </tr>`
+
+            trades.forEach(t => {
+
+                let profit = parseFloat(t.profit || 0)
+                let pct = parseFloat(t.pct || 0)
+
+                let cls = profit >= 0 ? "green" : "red"
+
+                html += `
+                <tr>
+                    <td>${formatTime(t.time)}</td>
+                    <td>${t.symbol}</td>
+                    <td class="green">${t.dir}</td>
+                    <td>${parseFloat(t.entry).toFixed(2)}</td>
+                    <td>${t.sl}</td>
+                    <td>${t.tp}</td>
+                    <td>${t.risk ?? "-"}</td>
+                    <td class="${cls}">
+                        $${profit.toFixed(2)} (${pct.toFixed(2)}%)
+                    </td>
+                </tr>`
+            })
+
+            html += "</table>"
+            container.innerHTML += html
         })
-        html += "</table>"
-    })
 
-    document.getElementById("historyContent").innerHTML = html
+    } catch(e){
+        console.log("history error", e)
+    }
 }
-
 // CALC
 function calc(){
     let inv = +inv.value
