@@ -239,9 +239,9 @@ async function loadTrades(){
     let low = document.getElementById("lowTrades")
     let high = document.getElementById("highTrades")
 
-    let header = `<tr><th>Time</th><th>Symbol</th><th>Entry</th><th>TP</th><th>SL</th><th>PnL</th></tr>`
-    low.innerHTML = header
-    high.innerHTML = header
+    let header = `<tr>
+    <th>Time</th><th>Symbol</th><th>Entry</th>
+    <th>TP</th><th>SL</th><th>Risk</th><th>PnL</th></tr>`
 
     let count = 0
 
@@ -252,6 +252,8 @@ async function loadTrades(){
         let pnl = (live - t.entry)/t.entry*100
         let cls = pnl>=0?"green":"red"
 
+        let riskColor = t.risk >= 4 ? "green" : t.risk == 3 ? "" : "red"
+
         let row = `
         <tr>
         <td>${formatTime(t.time)}</td>
@@ -259,6 +261,7 @@ async function loadTrades(){
         <td>${t.entry}</td>
         <td>${t.tp}</td>
         <td>${t.sl}</td>
+        <td class="${riskColor}"><b>${t.risk}</b></td>
         <td class="${cls}">${pnl.toFixed(2)}%</td>
         </tr>`
 
