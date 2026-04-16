@@ -82,13 +82,68 @@ def calculate_risk(price, ema20, ema50, rsi_val):
 
     return max(1,min(5,score))
 
+#======= Live Trading =======
+def run_live_trading():
+    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","ADAUSDT","CFXUSDT"]
+
+    while True:
+        data = load_json(DATA_FILE)
+        open_trades = data.get("open_trades", [])
+
+        for sym in symbols:
+            try:
+                klines = get_7d_klines(sym)[-100:]
+                closes = [float(k[4]) for k in klines]
+
+                price = closes[-1]
+                ema20_val = ema(closes,20)[-1]
+                ema50_val = ema(closes,50)[-1]
+                rsi_val = rsi(closes)
+
+                risk = calculate_risk(price, ema20_val, ema50_val, rsi_val)
+
+                # ===== OPEN TRADE =====
+                if risk >= 3 and len(open_trades) < 10:
+                    entry = price
+
+                    trade = {
+                        "symbol": sym,
+                        "entry": entry,
+                        "sl": entry * 0.995,
+                        "tp": entry * 1.01,
+                        "risk": risk,
+                        "time": datetime.utcnow().isoformat()
+                    }
+
+                    open_trades.append(trade)
+
+            except:
+                continue
+
+        # ===== CLOSE TRADES =====
+        new_open = []
+
+        for t in open_trades:
+            current = price_cache.get(t["symbol"], t["entry"])
+
+            if current >= t["tp"] or current <= t["sl"]:
+                # closed → ignore for now (can log later)
+                continue
+            else:
+                new_open.append(t)
+
+        data["open_trades"] = new_open
+        save_json(DATA_FILE, data)
+
+        time.sleep(10)
+
 # ================= FETCH =================
 def get_7d_klines(symbol):
     url = "https://api.binance.com/api/v3/klines"
     all_data = []
     end = int(time.time()*1000)
 
-    for _ in range(10):
+    for _ in range(5):
         params = {
             "symbol": symbol,
             "interval": "5m",
@@ -200,6 +255,42 @@ def run_strategy(no_sl=False):
             balance -= TRADE_SIZE
 
     return history
+#=========== GENERATE SIGNALS ========
+def generate_signals():
+    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","ADAUSDT","CFXUSDT"]
+
+    signals = []
+
+    for sym in symbols:
+        try:
+            klines = get_7d_klines(sym)[-100:]  # last candles only
+            closes = [float(k[4]) for k in klines]
+
+            if len(closes) < 50:
+                continue
+
+            price = closes[-1]
+            ema20_val = ema(closes, 20)[-1]
+            ema50_val = ema(closes, 50)[-1]
+            rsi_val = rsi(closes)
+
+            risk = calculate_risk(price, ema20_val, ema50_val, rsi_val)
+
+            if risk >= 3:  # only show decent signals
+                signals.append({
+                    "symbol": sym,
+                    "entry": round(price, 4),
+                    "tp": round(price * 1.01, 4),
+                    "sl": round(price * 0.995, 4),
+                    "risk": risk,
+                    "time": datetime.utcnow().isoformat()
+                })
+
+        except Exception as e:
+            print("Signal error:", sym, e)
+
+    save_json(DATA_FILE, {"open_trades": signals})
+
 
 # ================= GENERATE =================
 def generate_history():
@@ -218,15 +309,18 @@ def generate_history():
 #=============== safe generate ======
 def safe_generate():
     try:
+        print("⚡ Background backtest started...")
         generate_history()
+        print("✅ Backtest done")
     except Exception as e:
-        print("BACKTEST ERROR:", e)
+        print("❌ BACKTEST ERROR:", str(e))
 
 # ================= LOOP =================
 def bot_loop():
     while True:
         update_price()
         save_prices()
+        generate_signals()  
         time.sleep(5)
 
 # ================= ROUTES =================
@@ -242,10 +336,15 @@ def history():
 def prices():
     return jsonify(load_json(PRICE_FILE))
 
+@app.route("/data")
+def data():
+    return jsonify(load_json(DATA_FILE))
+
 # ================= START =================
 if __name__ == "__main__":
     init_files()
 
+    threading.Thread(target=run_live_trading, daemon=True).start()
      # ✅ run in background (does NOT block server)
     threading.Thread(target=safe_generate, daemon=True).start()
 

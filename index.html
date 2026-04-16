@@ -243,8 +243,22 @@ async function loadPrices(){
     table.innerHTML = `<tr><th>Symbol</th><th>Price</th></tr>`
 
     data.forEach(p=>{
-        table.innerHTML += `<tr><td>${p.symbol}</td><td>${p.price}</td></tr>`
-    })
+    let prev = lastPrices[p.symbol]
+    let cls = ""
+
+    if(prev !== undefined){
+        if(p.price > prev) cls = "green"
+        else if(p.price < prev) cls = "red"
+    }
+
+    table.innerHTML += `
+    <tr>
+        <td>${p.symbol}</td>
+        <td class="${cls}">${p.price.toFixed(4)}</td>
+    </tr>`
+
+    lastPrices[p.symbol] = p.price
+})
 }
 
 // HISTORY
