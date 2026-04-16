@@ -150,6 +150,7 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 </div>
 
 <script>
+let lastPrices = {}
 
 // INIT
 document.getElementById("tz").innerText =
@@ -203,14 +204,17 @@ async function loadTrades(){
     low.innerHTML = header
     high.innerHTML = header
 
-    if(!data || !data.open_trades) return
+    if(!data || !data.signals){
+    console.log("No signals yet")
+    return
+}
 
     let map={}
     prices?.forEach(p=>map[p.symbol]=p.price)
 
     let count=0
 
-    data.open_trades.forEach(t=>{
+    data.signals?.forEach(t=>{
         count++
 
         let live = map[t.symbol] || t.entry
@@ -316,6 +320,39 @@ function calc(){
     result.innerHTML =
     `<div class="green">$${profit.toFixed(2)}</div>
      <div class="red">$${loss.toFixed(2)}</div>`
+}
+
+function renderHistory(data, id){
+    let container = document.getElementById(id)
+
+    if(!container) return
+
+    container.innerHTML = ""
+
+    if(!data || Object.keys(data).length === 0){
+        container.innerHTML = "No history yet"
+        return
+    }
+
+    let balance = 2000
+
+    Object.keys(data).reverse().forEach(date => {
+
+        let trades = data[date]
+        let pnl = 0
+
+        trades.forEach(t => pnl += t.profit)
+
+        balance += pnl
+
+        container.innerHTML += `
+        <div style="margin-bottom:10px;padding:10px;background:#0b0f14;">
+        <b>${date}</b> |
+        Trades:${trades.length} |
+        PnL:<span class="${pnl>=0?'green':'red'}">$${pnl.toFixed(2)}</span> |
+        Balance:$${balance.toFixed(2)}
+        </div>`
+    })
 }
 
 // LOOP
