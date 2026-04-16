@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <title>Trading Terminal</title>
 
-<script src="https://s3.tradingview.com/tv.js"></script>
-
 <style>
 body { background:#0b0f14; color:#e6edf3; font-family:Segoe UI; margin:0; }
 
@@ -43,7 +41,7 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 <body>
 
 <div class="topbar">
-    <div>Balance: <span id="balance">Loading...</span></div>
+    <div>Balance: <span id="balance">$0.00</span></div>
     <div>Active Trades: <span id="activeTrades">0</span></div>
     <div>Timezone: <span id="tz"></span></div>
 </div>
@@ -80,7 +78,6 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 
 <!-- HISTORY -->
 <div id="history" class="section">
-
 <div class="grid">
 
 <div class="card">
@@ -94,7 +91,6 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 </div>
 
 </div>
-
 </div>
 
 <!-- CALCULATOR -->
@@ -146,6 +142,17 @@ function switchTab(e, tab){
     document.getElementById(tab).classList.add("active")
 }
 
+// SAFE FETCH (prevents crashes)
+async function safeFetch(url){
+    try{
+        const res = await fetch(url)
+        return await res.json()
+    }catch(e){
+        console.log("Fetch failed:", url)
+        return null
+    }
+}
+
 function formatTime(t){
     return new Date(t + "Z").toLocaleTimeString()
 }
@@ -154,11 +161,9 @@ let lastPrices = {}
 
 // ================= TRADES =================
 async function loadTrades(){
-    const res = await fetch("/data")
-    const data = await res.json()
 
-    const priceRes = await fetch("/prices")
-    const prices = await priceRes.json()
+    let data = await safeFetch("/data") || {open_trades: []}
+    let prices = await safeFetch("/prices") || []
 
     let map={}
     prices.forEach(p=>map[p.symbol]=p.price)
@@ -175,7 +180,7 @@ async function loadTrades(){
 
     let count = 0
 
-    data.open_trades?.forEach(t=>{
+    data.open_trades.forEach(t=>{
         count++
 
         let live = map[t.symbol] || t.entry
@@ -202,8 +207,7 @@ async function loadTrades(){
 
 // ================= PRICES =================
 async function loadPrices(){
-    const res = await fetch("/prices")
-    const data = await res.json()
+    let data = await safeFetch("/prices") || []
 
     let table = document.getElementById("prices")
     table.innerHTML = `<tr><th>Symbol</th><th>Price</th></tr>`
@@ -224,27 +228,24 @@ async function loadPrices(){
 
 // ================= HISTORY =================
 async function loadHistory(){
-    const res = await fetch("/history")
-    const data = await res.json()
+    let data = await safeFetch("/history")
+    if(!data) return
 
     renderHistory(data.strategyA, "historyA")
     renderHistory(data.strategyB, "historyB")
 }
 
 function renderHistory(data, id){
-
     let container = document.getElementById(id)
     container.innerHTML=""
+
+    if(!data) return
 
     let balance = 2000
 
     Object.keys(data).reverse().forEach(date=>{
-
         let trades = data[date]
-        let pnl = 0
-
-        trades.forEach(t=> pnl += t.profit)
-
+        let pnl = trades.reduce((a,t)=>a+t.profit,0)
         balance += pnl
 
         container.innerHTML += `
@@ -259,28 +260,26 @@ function renderHistory(data, id){
 
 // ================= BALANCE =================
 async function loadBalance(){
-    const res = await fetch("/history")
-    const data = await res.json()
+    let data = await safeFetch("/history")
+    if(!data) return
 
     let balance = 2000
 
     Object.values(data.strategyA).forEach(day=>{
-        day.forEach(t=>{
-            balance += t.profit
-        })
+        day.forEach(t=> balance += t.profit)
     })
 
     document.getElementById("balance").innerText =
         "$" + balance.toFixed(2)
 }
 
-// ================= CALCULATOR =================
+// ================= CALC =================
 function calc(){
-    let inv = parseFloat(inv.value)
-    let entry = parseFloat(entry.value)
-    let sl = parseFloat(sl.value)
-    let tp = parseFloat(tp.value)
-    let lev = parseFloat(lev.value)
+    let inv = parseFloat(inv.value)||0
+    let entry = parseFloat(entry.value)||0
+    let sl = parseFloat(sl.value)||0
+    let tp = parseFloat(tp.value)||0
+    let lev = parseFloat(lev.value)||1
 
     let size = inv*lev
     let qty = size/entry
@@ -293,11 +292,11 @@ function calc(){
 }
 
 function compoundCalc(){
-    let start = parseFloat(c_start.value)
-    let risk = parseFloat(c_risk.value)/100
-    let win = parseFloat(c_winrate.value)/100
-    let trades = parseInt(c_trades.value)
-    let days = parseInt(c_days.value)
+    let start = parseFloat(c_start.value)||0
+    let risk = (parseFloat(c_risk.value)||0)/100
+    let win = (parseFloat(c_winrate.value)||0)/100
+    let trades = parseInt(c_trades.value)||0
+    let days = parseInt(c_days.value)||0
 
     let bal = start
     let out=""
