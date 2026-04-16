@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Trading Terminal</title>
-
+<script src="https://s3.tradingview.com/tv.js"></script>
 <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968260.png">
 
 <style>
@@ -23,13 +23,8 @@ body {
     border-bottom:1px solid #1f2a33;
 }
 
-.stat {
-    font-size:14px;
-}
-.stat span {
-    color:#00ff9f;
-    font-weight:bold;
-}
+.stat { font-size:14px; }
+.stat span { color:#00ff9f; font-weight:bold; }
 
 /* TABS */
 .tabs {
@@ -54,12 +49,32 @@ body {
 .section { display:none; padding:20px; }
 .section.active { display:block; }
 
-/* CARD STYLE */
+/* GRID */
+.grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:20px;
+}
+
+/* MARKET + CHART SPLIT */
+.grid-2 {
+    display:grid;
+    grid-template-columns: 35% 65%;
+    gap:20px;
+    margin-top:20px;
+}
+
+@media (max-width:900px){
+    .grid, .grid-2 {
+        grid-template-columns:1fr;
+    }
+}
+
+/* CARD */
 .card {
     background:#11161c;
     padding:15px;
     border-radius:10px;
-    margin-bottom:20px;
     box-shadow:0 0 10px rgba(0,0,0,0.3);
 }
 
@@ -80,11 +95,7 @@ th { color:#888; }
 .green { color:#00ff9f; }
 .red { color:#ff4d4d; }
 
-/* PRICE FLASH */
-.flash-up { background:#003d2e; }
-.flash-down { background:#3d0000; }
-
-/* CALC */
+/* INPUT */
 input {
     width:100%;
     padding:10px;
@@ -92,6 +103,7 @@ input {
     border:1px solid #1f2a33;
     color:white;
     border-radius:6px;
+    margin-bottom:10px;
 }
 
 button {
@@ -109,40 +121,51 @@ button {
 
 <body>
 
-<!-- TOP BAR -->
 <div class="topbar">
     <div class="stat">Balance: <span>$1000</span></div>
     <div class="stat">Active Trades: <span id="activeTrades">0</span></div>
     <div class="stat">Timezone: <span id="tz"></span></div>
 </div>
 
-<!-- TABS -->
 <div class="tabs">
-    <div class="tab active" onclick="switchTab(event,'low')">Low Risk</div>
-    <div class="tab" onclick="switchTab(event,'high')">High Risk</div>
+    <div class="tab active" onclick="switchTab(event,'dashboard')">Dashboard</div>
     <div class="tab" onclick="switchTab(event,'history')">History</div>
     <div class="tab" onclick="switchTab(event,'calc')">Calculator</div>
 </div>
 
-<!-- LOW RISK -->
-<div id="low" class="section active">
-    <div class="card">
-        <h3>Low Risk Trades (3–5)</h3>
-        <table id="lowTrades"></table>
+<!-- DASHBOARD -->
+<div id="dashboard" class="section active">
+
+    <!-- TRADES -->
+    <div class="grid">
+        <div class="card">
+            <h3>Low Risk Trades</h3>
+            <table id="lowTrades"></table>
+        </div>
+
+        <div class="card">
+            <h3>High Risk Trades</h3>
+            <table id="highTrades"></table>
+        </div>
     </div>
 
-    <div class="card">
-        <h3>Market Prices</h3>
-        <table id="prices"></table>
-    </div>
-</div>
+    <!-- MARKET + CHART -->
+    <div class="grid-2">
 
-<!-- HIGH RISK -->
-<div id="high" class="section">
-    <div class="card">
-        <h3>High Risk Trades (1–2)</h3>
-        <table id="highTrades"></table>
+        <!-- LEFT: MARKET -->
+        <div class="card">
+            <h3>Market Prices</h3>
+            <table id="prices"></table>
+        </div>
+
+        <!-- RIGHT: CHART -->
+        <div class="card">
+            <h3 id="chartTitle">BTCUSDT Chart</h3>
+            <div id="chartContainer"></div>
+        </div>
+
     </div>
+
 </div>
 
 <!-- HISTORY -->
@@ -158,10 +181,11 @@ button {
     <div class="card">
         <h3>Calculator</h3>
 
-        <input id="inv" placeholder="Investment">
-        <input id="entry" placeholder="Entry">
-        <input id="sl" placeholder="Stop Loss">
-        <input id="tp" placeholder="Take Profit">
+        <input id="inv" type="number" placeholder="Investment">
+        <input id="entry" type="number" placeholder="Entry">
+        <input id="sl" type="number" placeholder="Stop Loss">
+        <input id="tp" type="number" placeholder="Take Profit">
+        <input id="lev" type="number" placeholder="Leverage">
 
         <button onclick="calc()">Calculate</button>
 
@@ -201,11 +225,9 @@ async function loadTrades(){
     const low = document.getElementById("lowTrades")
     const high = document.getElementById("highTrades")
 
-    const header = `
-    <tr>
+    const header = `<tr>
     <th>Time</th><th>Symbol</th><th>Entry</th>
-    <th>TP</th><th>SL</th><th>PnL</th>
-    </tr>`
+    <th>TP</th><th>SL</th><th>PnL</th></tr>`
 
     low.innerHTML = header
     high.innerHTML = header
@@ -236,7 +258,7 @@ async function loadTrades(){
     document.getElementById("activeTrades").innerText = count
 }
 
-// LOAD PRICES
+// LOAD PRICES (CLICKABLE)
 async function loadPrices(){
     const res = await fetch("/prices?t="+Date.now())
     const data = await res.json()
@@ -250,7 +272,10 @@ async function loadPrices(){
 
         table.innerHTML += `
         <tr>
-        <td>${p.symbol}</td>
+        <td onclick="loadChart('${p.symbol}')" 
+            style="cursor:pointer;color:#00ff9f;">
+            ${p.symbol}
+        </td>
         <td class="${cls}">${p.price.toFixed(4)}</td>
         </tr>`
 
@@ -258,99 +283,66 @@ async function loadPrices(){
     })
 }
 
-// HISTORY
-async function loadHistory() {
-    try{
-        const res = await fetch("/history?t="+Date.now())
-        const data = await res.json()
+// LOAD CHART
+function loadChart(symbol){
 
-        const container = document.getElementById("historyContent")
-        container.innerHTML = ""
+    document.getElementById("chartTitle").innerText = symbol + " Chart"
 
-        // sort newest first
-        Object.keys(data).sort().reverse().forEach(date => {
+    document.getElementById("chartContainer").innerHTML = `
+        <div id="tv_chart"></div>
+    `
 
-            let trades = data[date]
-
-            let html = `
-            <div class="date-header">${date}</div>
-            <table>
-            <tr>
-                <th>Time</th>
-                <th>Symbol</th>
-                <th>Dir</th>
-                <th>Entry</th>
-                <th>SL</th>
-                <th>TP</th>
-                <th>Risk</th>
-                <th>PnL</th>
-            </tr>`
-
-            trades.forEach(t => {
-
-                let profit = parseFloat(t.profit || 0)
-                let pct = parseFloat(t.pct || 0)
-
-                let cls = profit >= 0 ? "green" : "red"
-
-                html += `
-                <tr>
-                    <td>${formatTime(t.time)}</td>
-                    <td>${t.symbol}</td>
-                    <td class="green">${t.dir}</td>
-                    <td>${parseFloat(t.entry).toFixed(2)}</td>
-                    <td>${t.sl}</td>
-                    <td>${t.tp}</td>
-                    <td>${t.risk ?? "-"}</td>
-                    <td class="${cls}">
-                        $${profit.toFixed(2)} (${pct.toFixed(2)}%)
-                    </td>
-                </tr>`
-            })
-
-            html += "</table>"
-            container.innerHTML += html
-        })
-
-    } catch(e){
-        console.log("history error", e)
-    }
+    new TradingView.widget({
+        "container_id": "tv_chart",
+        "width": "100%",
+        "height": 500,
+        "symbol": "BINANCE:" + symbol,
+        "interval": "5",
+        "theme": "dark",
+        "style": "1",
+        "toolbar_bg": "#11161c",
+        "studies": [
+            "Volume@tv-basicstudies",
+            "RSI@tv-basicstudies",
+            "Moving Average Exponential@tv-basicstudies"
+        ]
+    })
 }
+
+// HISTORY
+async function loadHistory(){
+    const res = await fetch("/history?t="+Date.now())
+    const data = await res.json()
+
+    const container = document.getElementById("historyContent")
+    container.innerHTML=""
+
+    Object.keys(data).reverse().forEach(date=>{
+        container.innerHTML += `<div>${date}</div>`
+    })
+}
+
 // CALC
-function calc() {
-    const calcResult = document.getElementById("calcResult")
+function calc(){
+    const inv = parseFloat(inv.value)
+    const entry = parseFloat(entry.value)
+    const sl = parseFloat(sl.value)
+    const tp = parseFloat(tp.value)
+    const lev = parseFloat(lev.value)
 
-    const inv = parseFloat(document.getElementById("inv").value)
-    const entry = parseFloat(document.getElementById("entryCalc").value)
-    const sl = parseFloat(document.getElementById("slCalc").value)
-    const tp = parseFloat(document.getElementById("tpCalc").value)
-    const lev = parseFloat(document.getElementById("lev").value)
-
-    if (!inv || !entry || !sl || !tp || !lev) {
-        calcResult.innerHTML = "❌ Fill all fields"
+    if(!inv||!entry||!sl||!tp||!lev){
+        result.innerHTML="❌ Fill all"
         return
     }
 
-    // ✅ position size with leverage
-    const positionSize = inv * lev
+    let size = inv*lev
+    let qty = size/entry
+    let profit = (tp-entry)*qty
+    let loss = (sl-entry)*qty
 
-    // ✅ quantity of asset
-    const qty = positionSize / entry
-
-    // ✅ profit & loss
-    const profit = (tp - entry) * qty
-    const loss = (sl - entry) * qty
-
-    // ✅ percentage based on initial capital (NOT leveraged size)
-    const profitPct = (profit / inv) * 100
-    const lossPct = (loss / inv) * 100
-    const rr = Math.abs(profit / loss)
-
-    calcResult.innerHTML += `
-        <div class="green">💰 Profit: $${profit.toFixed(2)} (${profitPct.toFixed(2)}%)</div>
-        <div class="red">🛑 Loss: $${loss.toFixed(2)} (${lossPct.toFixed(2)}%)</div>
-        <div style="color:#888;">Position Size: $${positionSize.toFixed(2)}</div>
-    `
+    result.innerHTML=`
+    <div class="green">Profit: $${profit.toFixed(2)}</div>
+    <div class="red">Loss: $${loss.toFixed(2)}</div>`
 }
 
 // LOOP
@@ -363,7 +355,9 @@ function update(){
 setInterval(update,4000)
 update()
 
-</script>
+// AUTO LOAD BTC
+loadChart("BTCUSDT")
 
+</script>
 </body>
 </html>

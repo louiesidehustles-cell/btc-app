@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'btc-app-withered-flower-2181'
+app = 'btc-app-frosty-wave-6551'
 primary_region = 'syd'
 
 [build]
