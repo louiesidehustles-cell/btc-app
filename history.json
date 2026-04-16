@@ -1,0 +1,149 @@
+{
+  "2026-04-14": [
+    {
+      "time": "2026-04-14 08:09",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2270.57,
+      "sl": 2247.86,
+      "tp": 2315.98,
+      "status": "WIN",
+      "profit": 4.27,
+      "pct": 4.27
+    },
+    {
+      "time": "2026-04-14 08:14",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2298.79,
+      "sl": 2275.8,
+      "tp": 2344.77,
+      "status": "WIN",
+      "profit": 2.99,
+      "pct": 2.99
+    },
+    {
+      "time": "2026-04-14 08:32",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2340.99,
+      "sl": 2317.58,
+      "tp": 2387.81,
+      "status": "WIN",
+      "profit": 1.13,
+      "pct": 1.13
+    },
+    {
+      "time": "2026-04-14 08:42",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2339.7,
+      "sl": 2316.3,
+      "tp": 2386.49,
+      "status": "WIN",
+      "profit": 1.19,
+      "pct": 1.19
+    },
+    {
+      "time": "2026-04-14 09:27",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2385.95,
+      "sl": 2362.09,
+      "tp": 2433.67,
+      "status": "LOSS",
+      "profit": -0.77,
+      "pct": -0.77
+    },
+    {
+      "time": "2026-04-14 08:20",
+      "symbol": "BTCUSDT",
+      "dir": "BUY",
+      "entry": 74194.71,
+      "sl": 73452.76,
+      "tp": 75678.6,
+      "status": "WIN",
+      "profit": 1503.84,
+      "pct": 2.03
+    },
+    {
+      "time": "2026-04-14 08:25",
+      "symbol": "BTCUSDT",
+      "dir": "BUY",
+      "entry": 74239.85,
+      "sl": 73497.45,
+      "tp": 75724.65,
+      "status": "WIN",
+      "profit": 1489.06,
+      "pct": 2.01
+    },
+    {
+      "time": "2026-04-14 08:54",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2350.51,
+      "sl": 2327.0,
+      "tp": 2397.52,
+      "status": "WIN",
+      "profit": 54.39,
+      "pct": 2.31
+    },
+    {
+      "time": "2026-04-14 08:37",
+      "symbol": "SOLUSDT",
+      "dir": "BUY",
+      "entry": 85.86,
+      "sl": 85.0,
+      "tp": 87.58,
+      "status": "WIN",
+      "profit": 1.72,
+      "pct": 2.0
+    },
+    {
+      "time": "2026-04-14 09:21",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2364.48,
+      "sl": 2340.84,
+      "tp": 2411.77,
+      "status": "WIN",
+      "profit": 50.23,
+      "pct": 2.12
+    },
+    {
+      "time": "2026-04-14 09:10",
+      "symbol": "SOLUSDT",
+      "dir": "BUY",
+      "entry": 86.4,
+      "sl": 85.54,
+      "tp": 88.13,
+      "status": "LOSS",
+      "profit": -0.91,
+      "pct": -1.05
+    },
+    {
+      "time": "2026-04-14 08:59",
+      "symbol": "BTCUSDT",
+      "dir": "BUY",
+      "entry": 74632.35,
+      "sl": 73886.03,
+      "tp": 76125.0,
+      "status": "LOSS",
+      "profit": -753.5,
+      "pct": -1.01
+    }
+  ],
+  "2026-04-15": [
+    {
+      "time": "2026-04-15 01:00:37",
+      "symbol": "ETHUSDT",
+      "dir": "BUY",
+      "entry": 2351.9,
+      "sl": 2328.38,
+      "tp": 2398.94,
+      "status": "LOSS",
+      "profit": -23.9,
+      "pct": -1.02
+    }
+  ]
+}
