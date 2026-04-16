@@ -61,37 +61,33 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 <!-- DASHBOARD -->
 <div id="dashboard" class="section active">
 
+<!-- TOP: SIGNALS -->
 <div class="grid">
+    <div class="card">
+        <h3>Low Risk (3-5)</h3>
+        <table id="lowTrades"></table>
+    </div>
 
-<!-- LEFT SIDE -->
-<div>
-
-<div class="card">
-<h3>Low Risk (3-5)</h3>
-<table id="lowTrades"></table>
+    <div class="card">
+        <h3>High Risk (1-2)</h3>
+        <table id="highTrades"></table>
+    </div>
 </div>
 
-<div class="card" style="margin-top:20px;">
-<h3>High Risk (1-2)</h3>
-<table id="highTrades"></table>
-</div>
+<!-- BOTTOM: PRICES + CHART -->
+<div class="grid" style="margin-top:20px;">
 
-</div>
+    <!-- LEFT: PRICES -->
+    <div class="card">
+        <h3>Market Prices</h3>
+        <table id="prices"></table>
+    </div>
 
-<!-- RIGHT SIDE -->
-<div>
-
-<div class="card">
-<h3>Live Chart</h3>
-<div id="tv_chart" style="height:300px;"></div>
-</div>
-
-<div class="card" style="margin-top:20px;">
-<h3>Market Prices</h3>
-<table id="prices"></table>
-</div>
-
-</div>
+    <!-- RIGHT: CHART -->
+    <div class="card">
+        <h3>Live Chart</h3>
+        <div id="tvchart" style="height:400px;"></div>
+    </div>
 
 </div>
 
@@ -168,11 +164,19 @@ function switchTab(e, tab){
 
 // CHART
 new TradingView.widget({
-    container_id: "tv_chart",
-    symbol: "BINANCE:BTCUSDT",
-    interval: "5",
-    theme: "dark"
-})
+    "container_id": "tvchart",
+    "width": "100%",
+    "height": 400,
+    "symbol": "BINANCE:BTCUSDT",
+    "interval": "5",
+    "theme": "dark",
+    "style": "1",
+    "locale": "en",
+    "toolbar_bg": "#11161c",
+    "enable_publishing": false,
+    "hide_top_toolbar": false,
+    "save_image": false
+});
 
 // SAFE FETCH
 async function safeFetch(url){
@@ -245,24 +249,30 @@ async function loadPrices(){
 
 // HISTORY
 async function loadHistory(){
-    let data = await safeFetch("/history")
-    if(!data) return
+    const res = await fetch("/history")
+    const data = await res.json()
 
-    renderHistory(data.strategyA,"historyA")
-    renderHistory(data.strategyB,"historyB")
+    if(!data.strategyA || Object.keys(data.strategyA).length === 0){
+        document.getElementById("historyA").innerHTML = "Loading history..."
+        document.getElementById("historyB").innerHTML = "Loading history..."
+        return
+    }
+
+    renderHistory(data.strategyA, "historyA")
+    renderHistory(data.strategyB, "historyB")
 }
 
-function renderHistory(data,id){
-    let el = document.getElementById(id)
-    el.innerHTML=""
-
-    if(!data) return
-
-    Object.keys(data).reverse().forEach(d=>{
-        let pnl = data[d].reduce((a,t)=>a+t.profit,0)
-        el.innerHTML += `<div>${d} | ${pnl.toFixed(2)}</div>`
-    })
-}
+// function renderHistory(data,id){
+//    let el = document.getElementById(id)
+//    el.innerHTML=""
+//
+//   if(!data) return
+//
+//    Object.keys(data).reverse().forEach(d=>{
+//       let pnl = data[d].reduce((a,t)=>a+t.profit,0)
+//        el.innerHTML += `<div>${d} | ${pnl.toFixed(2)}</div>`
+//    })
+//}
 
 // BALANCE
 async function loadBalance(){
