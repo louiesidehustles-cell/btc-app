@@ -336,6 +336,11 @@ def history():
 def prices():
     return jsonify(load_json(PRICE_FILE))
 
+@app.route("/generate")
+def generate():
+    threading.Thread(target=safe_generate, daemon=True).start()
+    return {"status": "started"}
+
 @app.route("/data")
 def data():
     return jsonify(load_json(DATA_FILE))
