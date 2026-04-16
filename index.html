@@ -6,8 +6,6 @@
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
-<link rel="icon" href="https://cdn-icons-png.flaticon.com/512/5968/5968260.png">
-
 <style>
 body {
     background:#0b0f14;
@@ -16,7 +14,6 @@ body {
     margin:0;
 }
 
-/* TOP */
 .topbar {
     display:flex;
     justify-content:space-between;
@@ -27,7 +24,6 @@ body {
 
 .stat span { color:#00ff9f; font-weight:bold; }
 
-/* TABS */
 .tabs {
     display:flex;
     padding:10px 20px;
@@ -46,11 +42,9 @@ body {
     color:black;
 }
 
-/* SECTIONS */
 .section { display:none; padding:20px; }
 .section.active { display:block; }
 
-/* GRID */
 .grid {
     display:grid;
     grid-template-columns:50% 50%;
@@ -64,20 +58,12 @@ body {
     margin-top:20px;
 }
 
-@media (max-width:900px){
-    .grid, .grid-2 {
-        grid-template-columns:1fr;
-    }
-}
-
-/* CARD */
 .card {
     background:#11161c;
     padding:15px;
     border-radius:10px;
 }
 
-/* TABLE */
 table {
     width:100%;
     border-collapse:collapse;
@@ -93,34 +79,15 @@ th { color:#888; }
 
 .green { color:#00ff9f; }
 .red { color:#ff4d4d; }
+.yellow { color:#ffc857; }
 
-/* INPUT */
-input {
-    width:100%;
-    padding:10px;
-    background:#0b0f14;
-    border:1px solid #1f2a33;
-    color:white;
-    border-radius:6px;
-    margin-bottom:10px;
-}
-
-button {
-    padding:12px;
-    width:100%;
-    background:#00ff9f;
-    border:none;
-    font-weight:bold;
-    border-radius:6px;
-    cursor:pointer;
-}
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-    <div>Balance: <span id="balance">$1000</span></div>
+    <div>Balance: <span id="balance">$2000</span></div>
     <div>Active Trades: <span id="activeTrades">0</span></div>
     <div>Timezone: <span id="tz"></span></div>
 </div>
@@ -128,7 +95,6 @@ button {
 <div class="tabs">
     <div class="tab active" onclick="switchTab(event,'dashboard')">Dashboard</div>
     <div class="tab" onclick="switchTab(event,'history')">History</div>
-    <div class="tab" onclick="switchTab(event,'calc')">Calculator</div>
 </div>
 
 <!-- DASHBOARD -->
@@ -168,45 +134,6 @@ button {
     </div>
 </div>
 
-<!-- CALCULATOR -->
-<div id="calc" class="section">
-
-    <div class="grid">
-
-        <!-- STANDARD -->
-        <div class="card">
-            <h3>Standard Calculator</h3>
-
-            <input id="inv" type="number" placeholder="Investment ($)">
-            <input id="entry" type="number" placeholder="Entry Price">
-            <input id="sl" type="number" placeholder="Stop Loss">
-            <input id="tp" type="number" placeholder="Take Profit">
-            <input id="lev" type="number" placeholder="Leverage">
-
-            <button onclick="calc()">Calculate</button>
-
-            <div id="result"></div>
-        </div>
-
-        <!-- COMPOUND -->
-        <div class="card">
-            <h3>Compound Calculator</h3>
-
-            <input id="c_start" type="number" placeholder="Starting Balance ($)">
-            <input id="c_risk" type="number" placeholder="Risk % (e.g. 2)">
-            <input id="c_winrate" type="number" placeholder="Win Rate %">
-            <input id="c_trades" type="number" placeholder="Trades per day">
-            <input id="c_days" type="number" placeholder="Days">
-
-            <button onclick="compoundCalc()">Run Simulation</button>
-
-            <div id="compoundResult"></div>
-        </div>
-
-    </div>
-
-</div>
-
 <script>
 
 let lastPrices = {}
@@ -225,7 +152,7 @@ function formatTime(t){
     return new Date(t + "Z").toLocaleTimeString()
 }
 
-// TRADES
+// ===== TRADES =====
 async function loadTrades(){
     const res = await fetch("/data")
     const data = await res.json()
@@ -243,6 +170,10 @@ async function loadTrades(){
     <th>Time</th><th>Symbol</th><th>Entry</th>
     <th>TP</th><th>SL</th><th>Risk</th><th>PnL</th></tr>`
 
+    // ✅ FIX: RESET TABLE
+    low.innerHTML = header
+    high.innerHTML = header
+
     let count = 0
 
     data.open_trades?.forEach(t=>{
@@ -252,7 +183,10 @@ async function loadTrades(){
         let pnl = (live - t.entry)/t.entry*100
         let cls = pnl>=0?"green":"red"
 
-        let riskColor = t.risk >= 4 ? "green" : t.risk == 3 ? "" : "red"
+        let riskColor =
+            t.risk >= 4 ? "green" :
+            t.risk == 3 ? "yellow" :
+            "red"
 
         let row = `
         <tr>
@@ -272,7 +206,7 @@ async function loadTrades(){
     document.getElementById("activeTrades").innerText = count
 }
 
-// PRICES
+// ===== PRICES =====
 async function loadPrices(){
     const res = await fetch("/prices")
     const data = await res.json()
@@ -295,7 +229,7 @@ async function loadPrices(){
     })
 }
 
-// CHART
+// ===== CHART =====
 function loadChart(symbol){
     document.getElementById("chartTitle").innerText = symbol + " Chart"
     document.getElementById("chartContainer").innerHTML = `<div id="tv_chart"></div>`
@@ -310,7 +244,7 @@ function loadChart(symbol){
     })
 }
 
-// HISTORY
+// ===== HISTORY =====
 async function loadHistory(){
     const res = await fetch("/history")
     const data = await res.json()
@@ -323,37 +257,24 @@ async function loadHistory(){
         let trades = data[date]
 
         let pnl = 0, wins=0, losses=0
-        let riskStats = {1:0,2:0,3:0,4:0,5:0}
+        let lastBalance = 0
 
         trades.forEach(t=>{
             let p = parseFloat(t.profit||0)
             pnl += p
+            lastBalance = t.balance || lastBalance
             if(p>0) wins++; else losses++
-            riskStats[t.risk] += p
         })
 
         container.innerHTML += `
         <div style="margin-bottom:20px;padding:15px;background:#11161c;border-radius:10px;">
             
-            <div style="margin-bottom:10px;">
-                <b style="font-size:16px;">${date}</b>
-            </div>
-
-            <div style="display:flex;gap:15px;flex-wrap:wrap;margin-bottom:10px;">
-                <div>Trades: ${trades.length}</div>
-                <div>Wins: <span class="green">${wins}</span></div>
-                <div>Loss: <span class="red">${losses}</span></div>
-                <div>PnL: <span class="${pnl>=0?'green':'red'}">$${pnl.toFixed(2)}</span></div>
-            </div>
-
-            <div style="margin-bottom:10px;color:#888;">
-                Risk →
-                R1: ${riskStats[1].toFixed(2)} |
-                R2: ${riskStats[2].toFixed(2)} |
-                R3: ${riskStats[3].toFixed(2)} |
-                R4: ${riskStats[4].toFixed(2)} |
-                R5: ${riskStats[5].toFixed(2)}
-            </div>
+            <b>${date}</b> |
+            Trades:${trades.length} |
+            Wins:<span class="green">${wins}</span> |
+            Loss:<span class="red">${losses}</span> |
+            PnL:<span class="${pnl>=0?'green':'red'}">$${pnl.toFixed(2)}</span> |
+            Balance:<span class="green">$${lastBalance}</span>
 
             <table>
             <tr>
@@ -380,61 +301,6 @@ async function loadHistory(){
             </table>
         </div>`
     })
-}
-
-// STANDARD CALC
-function calc(){
-    let inv = parseFloat(inv.value)
-    let entry = parseFloat(entry.value)
-    let sl = parseFloat(sl.value)
-    let tp = parseFloat(tp.value)
-    let lev = parseFloat(lev.value)
-
-    if(!inv||!entry||!sl||!tp||!lev){
-        result.innerHTML="❌ Fill all"
-        return
-    }
-
-    let size = inv*lev
-    let qty = size/entry
-    let profit = (tp-entry)*qty
-    let loss = (sl-entry)*qty
-
-    result.innerHTML=`
-    <div class="green">Profit: $${profit.toFixed(2)}</div>
-    <div class="red">Loss: $${loss.toFixed(2)}</div>`
-}
-
-// COMPOUND
-function compoundCalc(){
-
-    const start = parseFloat(document.getElementById("c_start").value)
-    const risk = parseFloat(document.getElementById("c_risk").value) / 100
-    const winrate = parseFloat(document.getElementById("c_winrate").value) / 100
-    const trades = parseInt(document.getElementById("c_trades").value)
-    const days = parseInt(document.getElementById("c_days").value)
-
-    if(!start || !risk || !winrate || !trades || !days){
-        document.getElementById("compoundResult").innerHTML = "❌ Fill all fields"
-        return
-    }
-
-    let balance = start
-    let history = ""
-
-    for(let d=1; d<=days; d++){
-        for(let t=0; t<trades; t++){
-            let win = Math.random() < winrate
-            if(win) balance += balance * risk
-            else balance -= balance * risk
-        }
-        history += `Day ${d}: $${balance.toFixed(2)}<br>`
-    }
-
-    document.getElementById("compoundResult").innerHTML = `
-        <div class="green">Final Balance: $${balance.toFixed(2)}</div>
-        <div>${history}</div>
-    `
 }
 
 // LOOP
