@@ -11,7 +11,7 @@ PRICE_FILE = f"{BASE_DIR}/prices.json"
 
 START_BALANCE = 2000
 TRADE_SIZE = 100
-FEE = 0.001  # 0.1%
+FEE = 0.001
 
 price_cache = {}
 
@@ -82,13 +82,13 @@ def calculate_risk(price, ema20, ema50, rsi_val):
 
     return max(1,min(5,score))
 
-# ================= FETCH 7 DAYS =================
+# ================= FETCH =================
 def get_7d_klines(symbol):
     url = "https://api.binance.com/api/v3/klines"
     all_data = []
     end = int(time.time()*1000)
 
-    for _ in range(10):  # pagination
+    for _ in range(10):
         params = {
             "symbol": symbol,
             "interval": "5m",
@@ -105,80 +105,105 @@ def get_7d_klines(symbol):
 
 # ================= BACKTEST =================
 def run_strategy(no_sl=False):
+
+    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","ADAUSDT","CFXUSDT"]
+
+    # 🔥 merge ALL candles into ONE timeline
+    all_candles = []
+
+    for sym in symbols:
+        klines = get_7d_klines(sym)
+        for k in klines:
+            all_candles.append({
+                "symbol": sym,
+                "time": k[0],
+                "close": float(k[4])
+            })
+
+    # sort by time (IMPORTANT)
+    all_candles.sort(key=lambda x: x["time"])
+
     balance = START_BALANCE
     open_trades = []
     history = {}
 
-    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","ADAUSDT","CFXUSDT"]
+    price_history = {s: [] for s in symbols}
 
-    for sym in symbols:
-        klines = get_7d_klines(sym)
+    for c in all_candles:
 
-        closes = [float(k[4]) for k in klines]
-        times = [k[0] for k in klines]
+        sym = c["symbol"]
+        price = c["close"]
+        time_ts = c["time"]
 
-        for i in range(50,len(closes)):
+        price_history[sym].append(price)
 
-            price = closes[i]
-            ema20 = ema(closes[:i],20)[-1]
-            ema50 = ema(closes[:i],50)[-1]
-            rsi_val = rsi(closes[:i])
+        if len(price_history[sym]) < 50:
+            continue
 
-            risk = calculate_risk(price, ema20, ema50, rsi_val)
+        closes = price_history[sym]
 
-            # ===== OPEN =====
-            if risk >= 3 and balance >= TRADE_SIZE and len(open_trades) < 5:
+        ema20 = ema(closes,20)[-1]
+        ema50 = ema(closes,50)[-1]
+        rsi_val = rsi(closes)
 
-                entry = price
-                sl = entry * 0.995
-                tp = entry * 1.01
+        risk = calculate_risk(price, ema20, ema50, rsi_val)
 
-                open_trades.append({
-                    "symbol": sym,
-                    "entry": entry,
-                    "sl": sl,
-                    "tp": tp,
-                    "risk": risk,
-                    "time": datetime.utcfromtimestamp(times[i]/1000).isoformat()
+        # ===== CLOSE FIRST =====
+        new_open = []
+        for t in open_trades:
+
+            if t["symbol"] != sym:
+                new_open.append(t)
+                continue
+
+            if price >= t["tp"] or (not no_sl and price <= t["sl"]):
+
+                pnl = (price - t["entry"]) / t["entry"] * TRADE_SIZE
+                fee = TRADE_SIZE * FEE * 2
+                pnl -= fee
+
+                balance += TRADE_SIZE + pnl
+
+                date = t["time"].split("T")[0]
+
+                if date not in history:
+                    history[date] = []
+
+                history[date].append({
+                    **t,
+                    "close_price": price,
+                    "profit": round(pnl,2),
+                    "pct": round((pnl/TRADE_SIZE)*100,2)
                 })
 
-                balance -= TRADE_SIZE
+            else:
+                new_open.append(t)
 
-            # ===== CLOSE =====
-            new_open = []
-            for t in open_trades:
-                if price >= t["tp"] or (not no_sl and price <= t["sl"]):
+        open_trades = new_open
 
-                    exit_price = price
-                    pnl = (exit_price - t["entry"]) / t["entry"] * TRADE_SIZE
+        # ===== OPEN AFTER CLOSE =====
+        if risk >= 3 and balance >= TRADE_SIZE:
 
-                    fee = TRADE_SIZE * FEE * 2
-                    pnl -= fee
+            entry = price
+            sl = entry * 0.995
+            tp = entry * 1.01
 
-                    balance += TRADE_SIZE + pnl
+            open_trades.append({
+                "symbol": sym,
+                "entry": entry,
+                "sl": sl,
+                "tp": tp,
+                "risk": risk,
+                "time": datetime.utcfromtimestamp(time_ts/1000).isoformat()
+            })
 
-                    date = t["time"].split("T")[0]
-
-                    if date not in history:
-                        history[date] = []
-
-                    history[date].append({
-                        **t,
-                        "close_price": exit_price,
-                        "profit": round(pnl,2),
-                        "pct": round((pnl/TRADE_SIZE)*100,2)
-                    })
-
-                else:
-                    new_open.append(t)
-
-            open_trades = new_open
+            balance -= TRADE_SIZE
 
     return history
 
 # ================= GENERATE =================
 def generate_history():
-    print("⚡ Running 7-day backtest...")
+    print("⚡ Running 7-day REAL simulation...")
 
     historyA = run_strategy(no_sl=False)
     historyB = run_strategy(no_sl=True)
@@ -213,7 +238,11 @@ def prices():
 # ================= START =================
 if __name__ == "__main__":
     init_files()
-    generate_history()
+
+    try:
+        generate_history()
+    except Exception as e:
+        print("BACKTEST ERROR:", e)
 
     threading.Thread(target=bot_loop, daemon=True).start()
 
