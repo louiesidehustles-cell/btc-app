@@ -201,6 +201,87 @@ def check_close():
     save_json(DATA_FILE, data)
     save_json(HISTORY_FILE, history)
 
+def generate_backtest_history(days=2):
+    print("⚡ Generating backtest history...")
+
+    history = {}
+
+    symbols = ["BTCUSDT","ETHUSDT","SOLUSDT"]
+
+    for sym in symbols:
+
+        klines = get_klines(sym, "5m", 600)  # ~2 days
+
+        closes = [float(k[4]) for k in klines]
+        volumes = [float(k[5]) for k in klines]
+        times = [k[0] for k in klines]
+
+        open_trade = None
+
+        for i in range(50, len(closes)):
+
+            price = closes[i]
+
+            ema20 = calculate_ema(closes[:i], 20)[-1]
+            ema50 = calculate_ema(closes[:i], 50)[-1]
+            rsi = calculate_rsi(closes[:i])
+
+            avg_vol = sum(volumes[i-10:i]) / 10
+            current_vol = volumes[i]
+
+            volatility = get_volatility(closes[:i])
+            cfg = get_dynamic_thresholds(volatility)
+
+            risk = calculate_risk(price, ema20, ema50, rsi, current_vol, avg_vol)
+
+            # ===== OPEN TRADE =====
+            if not open_trade:
+
+                if risk >= 3 and price > ema20 and rsi < cfg["rsi_high"]:
+                    
+                    entry = price
+                    sl = entry * (1 - cfg["sl"])
+                    tp = entry * (1 + cfg["tp"])
+
+                    open_trade = {
+                        "symbol": sym,
+                        "entry": entry,
+                        "sl": sl,
+                        "tp": tp,
+                        "risk": risk,
+                        "time": datetime.utcfromtimestamp(times[i]/1000).isoformat()
+                    }
+
+            # ===== CLOSE TRADE =====
+            elif open_trade:
+
+                if price >= open_trade["tp"] or price <= open_trade["sl"]:
+
+                    profit = price - open_trade["entry"]
+                    pct = (profit / open_trade["entry"]) * 100
+
+                    date = open_trade["time"].split("T")[0]
+
+                    trade = {
+                        **open_trade,
+                        "close_price": price,
+                        "profit": round(profit, 2),
+                        "pct": round(pct, 2)
+                    }
+
+                    if date not in history:
+                        history[date] = []
+
+                    history[date].append(trade)
+
+                    open_trade = None
+
+    save_json(HISTORY_FILE, history)
+
+    print("✅ Backtest complete")
+
+
+
 # ===== LOOP =====
 def bot_loop():
     while True:
@@ -263,6 +344,11 @@ def login():
 # ===== START =====
 if __name__ == "__main__":
     init_files()
+
+    # 🔥 RESET HISTORY + GENERATE REAL BACKTEST
+    generate_backtest_history(days=2)
+
     threading.Thread(target=bot_loop, daemon=True).start()
+
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
