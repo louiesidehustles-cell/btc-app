@@ -110,16 +110,17 @@ def check_signal():
 
     now = time.time()
 
-    # ✅ only trigger on new candle
-    if not is_new_candle(300):   # 5m candles
+    # ✅ only trigger on new candle (5m)
+    if not is_new_candle(300):
         return
 
     data = load_json(DATA_FILE)
 
-    if len(data["open_trades"]) >= 5:
-        return  # limit trades
+    if len(data["open_trades"]) >= 10:
+        return
 
     symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","CFXUSDT"]
+
 
     for sym in symbols:
 
@@ -492,6 +493,7 @@ def check_signal():
 
     symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","CFXUSDT"]
 
+
     for sym in symbols:
 
         # 🧠 cooldown per symbol
@@ -515,23 +517,31 @@ def check_signal():
 
         # ===== STRATEGY =====
 
-        if price > ema20 > ema50 and rsi < 65 and current_vol > avg_vol:
-            direction = "BUY"
-
-        elif price < ema20 < ema50 and rsi > 35 and current_vol > avg_vol:
-            direction = "SELL"
-
-        else:
+        # ✅ trend filter
+        if not (price > ema20 > ema50):
             continue
 
-        entry = price
+        # ✅ RSI filter (avoid overbought)
+        if rsi >= 70:
+            continue
 
-        if direction == "BUY":
-            sl = round(entry * 0.995, 2)
-            tp = round(entry * 1.01, 2)
-        else:
-            sl = round(entry * 1.005, 2)
-            tp = round(entry * 0.99, 2)
+        # ⚠️ TEMP: relax volume filter (or you'll get no signals)
+        if current_vol <= avg_vol * 0.9:
+            continue
+
+        direction = "BUY"
+
+        # ===== RISK CALCULATION =====
+        risk = get_risk_level(price, prev_price_cache.get(sym))
+
+        # ❌ skip if no valid risk
+        if risk is None:
+            continue
+
+        # ===== TRADE SETUP =====
+        entry = price
+        sl = round(entry * 0.995, 2)
+        tp = round(entry * 1.01, 2)
 
         trade = {
             "time": datetime.utcnow().isoformat(),
@@ -543,20 +553,22 @@ def check_signal():
             "status": "OPEN",
             "profit": "",
             "pct": "",
-            "risk": 3
+            "risk": risk
         }
 
         data["open_trades"].append(trade)
         save_json(DATA_FILE, data)
 
+        # ✅ TELEGRAM WITH RISK
         send_telegram(
-            f"{direction} {sym}\nEntry: {entry}\nSL: {sl}\nTP: {tp}"
+            f"📈 BUY {sym} (Risk {risk})\n"
+            f"Entry: {entry}\nSL: {sl}\nTP: {tp}"
         )
 
         last_trade_time[sym] = now
         last_signal_time = now
 
-        print("NEW SIGNAL:", sym, direction)
+        print(f"NEW SIGNAL: {sym} BUY | Risk {risk}")
 
         break
 
