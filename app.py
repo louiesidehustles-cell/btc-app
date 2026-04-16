@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from flask import Flask, jsonify, send_file
 import requests, json, os, threading, time
 from datetime import datetime
@@ -369,12 +368,8 @@ if __name__ == "__main__":
     threading.Thread(target=bot_loop, daemon=True).start()
 
     port = int(os.environ.get("PORT", 8080))
-=======
-from flask import Flask, jsonify, send_file
-import requests, json, os, threading, time
-from datetime import datetime
-import pytz
-import time
+
+
 
 app = Flask(__name__)
 last_summary_date = None
@@ -740,5 +735,4 @@ if __name__ == "__main__":
     threading.Thread(target=bot_loop, daemon=True).start()
 
     port = int(os.environ.get("PORT", 8080))
->>>>>>> 47b7d13 (add auto deploy)
     app.run(host="0.0.0.0", port=port)
