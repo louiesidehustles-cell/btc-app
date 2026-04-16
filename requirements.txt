@@ -1,3 +1,8 @@
+<<<<<<< HEAD
 requests
 flask
+=======
+requests
+flask
+>>>>>>> 47b7d13 (add auto deploy)
 pytz
