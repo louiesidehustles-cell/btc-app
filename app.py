@@ -214,6 +214,12 @@ def generate_history():
     })
 
     print("✅ Done")
+    
+    def safe_generate():
+        try:
+            generate_history()
+        except Exception as e:
+            print("BACKTEST ERROR:", e)
 
 # ================= LOOP =================
 def bot_loop():
@@ -239,10 +245,8 @@ def prices():
 if __name__ == "__main__":
     init_files()
 
-    try:
-        generate_history()
-    except Exception as e:
-        print("BACKTEST ERROR:", e)
+     # ✅ run in background (does NOT block server)
+    threading.Thread(target=safe_generate, daemon=True).start()
 
     threading.Thread(target=bot_loop, daemon=True).start()
 
