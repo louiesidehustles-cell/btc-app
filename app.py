@@ -214,12 +214,13 @@ def generate_history():
     })
 
     print("✅ Done")
-    
-    def safe_generate():
-        try:
-            generate_history()
-        except Exception as e:
-            print("BACKTEST ERROR:", e)
+
+#=============== safe generate ======
+def safe_generate():
+    try:
+        generate_history()
+    except Exception as e:
+        print("BACKTEST ERROR:", e)
 
 # ================= LOOP =================
 def bot_loop():
