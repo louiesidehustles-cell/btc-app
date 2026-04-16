@@ -7,80 +7,36 @@
 <script src="https://s3.tradingview.com/tv.js"></script>
 
 <style>
-body {
-    background:#0b0f14;
-    color:#e6edf3;
-    font-family:Segoe UI, Arial;
-    margin:0;
-}
+body { background:#0b0f14; color:#e6edf3; font-family:Segoe UI; margin:0; }
 
 .topbar {
-    display:flex;
-    justify-content:space-between;
-    padding:15px 25px;
-    background:#11161c;
-    border-bottom:1px solid #1f2a33;
+    display:flex; justify-content:space-between;
+    padding:15px 25px; background:#11161c;
 }
 
-.stat span { color:#00ff9f; font-weight:bold; }
-
-.tabs {
-    display:flex;
-    padding:10px 20px;
-    border-bottom:1px solid #1f2a33;
-}
-
-.tab {
-    padding:10px 18px;
-    cursor:pointer;
-    margin-right:10px;
-    border-radius:6px;
-}
-
-.tab.active {
-    background:#00ff9f;
-    color:black;
-}
+.tabs { display:flex; padding:10px; background:#11161c; }
+.tab { padding:10px 20px; cursor:pointer; }
+.tab.active { background:#00ff9f; color:black; }
 
 .section { display:none; padding:20px; }
 .section.active { display:block; }
 
-.grid {
-    display:grid;
-    grid-template-columns:50% 50%;
-    gap:20px;
-}
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
-.grid-2 {
-    display:grid;
-    grid-template-columns:35% 65%;
-    gap:20px;
-    margin-top:20px;
-}
+.card { background:#11161c; padding:15px; border-radius:10px; }
 
-.card {
-    background:#11161c;
-    padding:15px;
-    border-radius:10px;
-}
-
-table {
-    width:100%;
-    border-collapse:collapse;
-}
-
-th, td {
-    padding:10px;
-    text-align:center;
-    border-bottom:1px solid #1f2a33;
-}
-
-th { color:#888; }
+table { width:100%; border-collapse:collapse; }
+th, td { padding:8px; text-align:center; border-bottom:1px solid #222; }
 
 .green { color:#00ff9f; }
 .red { color:#ff4d4d; }
-.yellow { color:#ffc857; }
 
+input, button {
+    width:100%; padding:10px; margin-bottom:10px;
+    background:#0b0f14; color:white; border:1px solid #333;
+}
+
+button { background:#00ff9f; color:black; cursor:pointer; }
 </style>
 </head>
 
@@ -95,48 +51,90 @@ th { color:#888; }
 <div class="tabs">
     <div class="tab active" onclick="switchTab(event,'dashboard')">Dashboard</div>
     <div class="tab" onclick="switchTab(event,'history')">History</div>
+    <div class="tab" onclick="switchTab(event,'calc')">Calculator</div>
 </div>
 
 <!-- DASHBOARD -->
 <div id="dashboard" class="section active">
 
-    <div class="grid">
-        <div class="card">
-            <h3>Low Risk Trades</h3>
-            <table id="lowTrades"></table>
-        </div>
+<div class="grid">
 
-        <div class="card">
-            <h3>High Risk Trades</h3>
-            <table id="highTrades"></table>
-        </div>
-    </div>
+<div class="card">
+<h3>Low Risk (3-5)</h3>
+<table id="lowTrades"></table>
+</div>
 
-    <div class="grid-2">
-        <div class="card">
-            <h3>Market Prices</h3>
-            <table id="prices"></table>
-        </div>
+<div class="card">
+<h3>High Risk (1-2)</h3>
+<table id="highTrades"></table>
+</div>
 
-        <div class="card">
-            <h3 id="chartTitle">BTCUSDT Chart</h3>
-            <div id="chartContainer"></div>
-        </div>
-    </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+<h3>Market Prices</h3>
+<table id="prices"></table>
+</div>
 
 </div>
 
 <!-- HISTORY -->
 <div id="history" class="section">
-    <div class="card">
-        <h3>Trade History</h3>
-        <div id="historyContent"></div>
-    </div>
+
+<div class="grid">
+
+<div class="card">
+<h3>Strategy A (SL + TP)</h3>
+<div id="historyA"></div>
+</div>
+
+<div class="card">
+<h3>Strategy B (No SL)</h3>
+<div id="historyB"></div>
+</div>
+
+</div>
+
+</div>
+
+<!-- CALCULATOR -->
+<div id="calc" class="section">
+
+<div class="grid">
+
+<div class="card">
+<h3>Standard Calculator</h3>
+
+<input id="inv" placeholder="Investment">
+<input id="entry" placeholder="Entry">
+<input id="sl" placeholder="Stop Loss">
+<input id="tp" placeholder="Take Profit">
+<input id="lev" placeholder="Leverage">
+
+<button onclick="calc()">Calculate</button>
+<div id="result"></div>
+
+</div>
+
+<div class="card">
+<h3>Compound Calculator</h3>
+
+<input id="c_start" placeholder="Start Balance">
+<input id="c_risk" placeholder="Risk %">
+<input id="c_winrate" placeholder="Winrate %">
+<input id="c_trades" placeholder="Trades/day">
+<input id="c_days" placeholder="Days">
+
+<button onclick="compoundCalc()">Run</button>
+<div id="compoundResult"></div>
+
+</div>
+
+</div>
+
 </div>
 
 <script>
-
-let lastPrices = {}
 
 document.getElementById("tz").innerText =
 Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -152,7 +150,9 @@ function formatTime(t){
     return new Date(t + "Z").toLocaleTimeString()
 }
 
-// ===== TRADES =====
+let lastPrices = {}
+
+// ================= TRADES =================
 async function loadTrades(){
     const res = await fetch("/data")
     const data = await res.json()
@@ -170,7 +170,6 @@ async function loadTrades(){
     <th>Time</th><th>Symbol</th><th>Entry</th>
     <th>TP</th><th>SL</th><th>Risk</th><th>PnL</th></tr>`
 
-    // ✅ FIX: RESET TABLE
     low.innerHTML = header
     high.innerHTML = header
 
@@ -183,11 +182,6 @@ async function loadTrades(){
         let pnl = (live - t.entry)/t.entry*100
         let cls = pnl>=0?"green":"red"
 
-        let riskColor =
-            t.risk >= 4 ? "green" :
-            t.risk == 3 ? "yellow" :
-            "red"
-
         let row = `
         <tr>
         <td>${formatTime(t.time)}</td>
@@ -195,7 +189,7 @@ async function loadTrades(){
         <td>${t.entry}</td>
         <td>${t.tp}</td>
         <td>${t.sl}</td>
-        <td class="${riskColor}"><b>${t.risk}</b></td>
+        <td><b>${t.risk}</b></td>
         <td class="${cls}">${pnl.toFixed(2)}%</td>
         </tr>`
 
@@ -205,20 +199,8 @@ async function loadTrades(){
 
     document.getElementById("activeTrades").innerText = count
 }
-//==== balance update =====
-async function loadBalance(){
-    try{
-        const res = await fetch("/balance")
-        const data = await res.json()
 
-        document.getElementById("balance").innerText =
-            "$" + data.balance.toFixed(2)
-    }catch(e){
-        console.log("Balance error", e)
-    }
-}
-
-// ===== PRICES =====
+// ================= PRICES =================
 async function loadPrices(){
     const res = await fetch("/prices")
     const data = await res.json()
@@ -232,8 +214,7 @@ async function loadPrices(){
 
         table.innerHTML += `
         <tr>
-        <td onclick="loadChart('${p.symbol}')" style="cursor:pointer;color:#00ff9f;">
-        ${p.symbol}</td>
+        <td>${p.symbol}</td>
         <td class="${cls}">${p.price.toFixed(4)}</td>
         </tr>`
 
@@ -241,94 +222,110 @@ async function loadPrices(){
     })
 }
 
-// ===== CHART =====
-function loadChart(symbol){
-    document.getElementById("chartTitle").innerText = symbol + " Chart"
-    document.getElementById("chartContainer").innerHTML = `<div id="tv_chart"></div>`
-
-    new TradingView.widget({
-        container_id: "tv_chart",
-        width: "100%",
-        height: 500,
-        symbol: "BINANCE:" + symbol,
-        interval: "5",
-        theme: "dark"
-    })
-}
-
-// ===== HISTORY =====
+// ================= HISTORY =================
 async function loadHistory(){
     const res = await fetch("/history")
     const data = await res.json()
 
-    let container = document.getElementById("historyContent")
+    renderHistory(data.strategyA, "historyA")
+    renderHistory(data.strategyB, "historyB")
+}
+
+function renderHistory(data, id){
+
+    let container = document.getElementById(id)
     container.innerHTML=""
+
+    let balance = 2000
 
     Object.keys(data).reverse().forEach(date=>{
 
         let trades = data[date]
+        let pnl = 0
 
-        let pnl = 0, wins=0, losses=0
-        let lastBalance = 0
+        trades.forEach(t=> pnl += t.profit)
 
-        trades.forEach(t=>{
-            let p = parseFloat(t.profit||0)
-            pnl += p
-            lastBalance = t.balance || lastBalance
-            if(p>0) wins++; else losses++
-        })
+        balance += pnl
 
         container.innerHTML += `
-        <div style="margin-bottom:20px;padding:15px;background:#11161c;border-radius:10px;">
-            
-            <b>${date}</b> |
-            Trades:${trades.length} |
-            Wins:<span class="green">${wins}</span> |
-            Loss:<span class="red">${losses}</span> |
-            PnL:<span class="${pnl>=0?'green':'red'}">$${pnl.toFixed(2)}</span> |
-            Balance:<span class="green">$${lastBalance}</span>
-
-            <table>
-            <tr>
-                <th>Time</th><th>Symbol</th><th>Entry</th>
-                <th>TP</th><th>SL</th><th>Risk</th><th>PnL</th>
-            </tr>
-
-            ${
-                trades.map(t=>`
-                <tr>
-                    <td>${formatTime(t.time)}</td>
-                    <td>${t.symbol}</td>
-                    <td>${t.entry.toFixed(2)}</td>
-                    <td>${t.tp.toFixed(2)}</td>
-                    <td>${t.sl.toFixed(2)}</td>
-                    <td>${t.risk}</td>
-                    <td class="${t.profit>=0?'green':'red'}">
-                        $${t.profit} (${t.pct}%)
-                    </td>
-                </tr>
-                `).join("")
-            }
-
-            </table>
+        <div style="margin-bottom:10px;padding:10px;background:#0b0f14;">
+        <b>${date}</b> |
+        Trades:${trades.length} |
+        PnL:<span class="${pnl>=0?'green':'red'}">$${pnl.toFixed(2)}</span> |
+        Balance:$${balance.toFixed(2)}
         </div>`
     })
 }
 
-// LOOP
+// ================= BALANCE =================
+async function loadBalance(){
+    const res = await fetch("/history")
+    const data = await res.json()
+
+    let balance = 2000
+
+    Object.values(data.strategyA).forEach(day=>{
+        day.forEach(t=>{
+            balance += t.profit
+        })
+    })
+
+    document.getElementById("balance").innerText =
+        "$" + balance.toFixed(2)
+}
+
+// ================= CALCULATOR =================
+function calc(){
+    let inv = parseFloat(inv.value)
+    let entry = parseFloat(entry.value)
+    let sl = parseFloat(sl.value)
+    let tp = parseFloat(tp.value)
+    let lev = parseFloat(lev.value)
+
+    let size = inv*lev
+    let qty = size/entry
+    let profit = (tp-entry)*qty
+    let loss = (sl-entry)*qty
+
+    result.innerHTML =
+    `<div class="green">Profit: $${profit.toFixed(2)}</div>
+     <div class="red">Loss: $${loss.toFixed(2)}</div>`
+}
+
+function compoundCalc(){
+    let start = parseFloat(c_start.value)
+    let risk = parseFloat(c_risk.value)/100
+    let win = parseFloat(c_winrate.value)/100
+    let trades = parseInt(c_trades.value)
+    let days = parseInt(c_days.value)
+
+    let bal = start
+    let out=""
+
+    for(let d=1; d<=days; d++){
+        for(let t=0;t<trades;t++){
+            if(Math.random()<win) bal+=bal*risk
+            else bal-=bal*risk
+        }
+        out += `Day ${d}: $${bal.toFixed(2)}<br>`
+    }
+
+    compoundResult.innerHTML =
+    `<div class="green">$${bal.toFixed(2)}</div>${out}`
+}
+
+// ================= LOOP =================
 function update(){
     loadTrades()
     loadPrices()
     loadHistory()
-    loadBalance()   // 🔥 THIS WAS MISSING
+    loadBalance()
 }
 
 setInterval(update,4000)
 update()
-loadBalance()
-
-loadChart("BTCUSDT")
 
 </script>
+
 </body>
 </html>
