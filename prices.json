@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 [
   {
     "symbol": "BTCUSDT",
@@ -20,8 +20,6 @@
     "symbol": "PEPEUSDT",
     "price": 3.62e-06
   }
-=======
-[
   {
     "symbol": "BTCUSDT",
     "price": 74626.4
@@ -42,5 +40,4 @@
     "symbol": "PEPEUSDT",
     "price": 3.62e-06
   }
->>>>>>> 47b7d13 (add auto deploy)
 ]
