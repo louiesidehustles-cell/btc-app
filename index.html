@@ -347,7 +347,6 @@ function calc() {
     const rr = Math.abs(profit / loss)
 
     calcResult.innerHTML += `
-        <div style="color:#f1c40f;">R:R = ${rr.toFixed(2)}</div>
         <div class="green">💰 Profit: $${profit.toFixed(2)} (${profitPct.toFixed(2)}%)</div>
         <div class="red">🛑 Loss: $${loss.toFixed(2)} (${lossPct.toFixed(2)}%)</div>
         <div style="color:#888;">Position Size: $${positionSize.toFixed(2)}</div>
