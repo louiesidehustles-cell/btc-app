@@ -143,7 +143,7 @@ def get_7d_klines(symbol):
     all_data = []
     end = int(time.time()*1000)
 
-    for _ in range(5):
+    for _ in range(3):
         params = {
             "symbol": symbol,
             "interval": "5m",
