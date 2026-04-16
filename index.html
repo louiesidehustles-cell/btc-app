@@ -48,7 +48,7 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 
 <div class="topbar">
     <div>Balance: <span id="balance">$0</span></div>
-    <div>Active Trades: <span id="activeTrades">0</span></div>
+    <div>Active Signals: <span id="activeTrades">0</span></div>
     <div>Timezone: <span id="tz"></span></div>
 </div>
 
@@ -77,13 +77,11 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 <!-- BOTTOM: PRICES + CHART -->
 <div class="grid" style="margin-top:20px;">
 
-    <!-- LEFT: PRICES -->
     <div class="card">
         <h3>Market Prices</h3>
         <table id="prices"></table>
     </div>
 
-    <!-- RIGHT: CHART -->
     <div class="card">
         <h3>Live Chart</h3>
         <div id="tvchart" style="height:400px;"></div>
@@ -95,7 +93,6 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 
 <!-- HISTORY -->
 <div id="history" class="section">
-
 <div class="grid">
 
 <div class="card">
@@ -109,12 +106,10 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 </div>
 
 </div>
-
 </div>
 
 <!-- CALCULATOR -->
 <div id="calc" class="section">
-
 <div class="grid">
 
 <div class="card">
@@ -146,13 +141,12 @@ button { background:#00ff9f; color:black; cursor:pointer; }
 </div>
 
 </div>
-
 </div>
 
 <script>
+
 let lastPrices = {}
 
-// INIT
 document.getElementById("tz").innerText =
 Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -165,19 +159,17 @@ function switchTab(e, tab){
 
 // CHART
 new TradingView.widget({
-    "container_id": "tvchart",
-    "width": "100%",
-    "height": 400,
-    "symbol": "BINANCE:BTCUSDT",
-    "interval": "5",
-    "theme": "dark",
-    "style": "1",
-    "locale": "en",
-    "toolbar_bg": "#11161c",
-    "enable_publishing": false,
-    "hide_top_toolbar": false,
-    "save_image": false
-});
+    container_id: "tvchart",
+    width: "100%",
+    height: 400,
+    symbol: "BINANCE:BTCUSDT",
+    interval: "5",
+    theme: "dark",
+    style: "1",
+    locale: "en",
+    toolbar_bg: "#11161c",
+    enable_publishing: false
+})
 
 // SAFE FETCH
 async function safeFetch(url){
@@ -189,32 +181,31 @@ async function safeFetch(url){
     }
 }
 
-// TRADES
+// SIGNALS
 async function loadTrades(){
     let data = await safeFetch("/data")
     let prices = await safeFetch("/prices")
+
+    let low = document.getElementById("lowTrades")
+    let high = document.getElementById("highTrades")
 
     let header = `<tr>
     <th>Time</th><th>Symbol</th><th>Entry</th>
     <th>TP</th><th>SL</th><th>Risk</th><th>PnL</th></tr>`
 
-    let low = document.getElementById("lowTrades")
-    let high = document.getElementById("highTrades")
-
     low.innerHTML = header
     high.innerHTML = header
 
-    if(!data || !data.signals){
-    console.log("No signals yet")
-    return
-}
+    if(!data || !data.signals || data.signals.length === 0){
+        return
+    }
 
     let map={}
     prices?.forEach(p=>map[p.symbol]=p.price)
 
     let count=0
 
-    data.signals?.forEach(t=>{
+    data.signals.forEach(t=>{
         count++
 
         let live = map[t.symbol] || t.entry
@@ -244,88 +235,48 @@ async function loadPrices(){
     if(!data) return
 
     let table = document.getElementById("prices")
-    table.innerHTML = `<tr><th>Symbol</th><th>Price</th></tr>`
+
+    let html = `<tr><th>Symbol</th><th>Price</th></tr>`
 
     data.forEach(p=>{
-    let prev = lastPrices[p.symbol]
-    let cls = ""
+        let prev = lastPrices[p.symbol]
+        let cls = ""
 
-    if(prev !== undefined){
-        if(p.price > prev) cls = "green"
-        else if(p.price < prev) cls = "red"
-    }
+        if(prev !== undefined){
+            if(p.price > prev) cls = "green"
+            else if(p.price < prev) cls = "red"
+        }
 
-    table.innerHTML += `
-    <tr>
-        <td>${p.symbol}</td>
-        <td class="${cls}">${p.price.toFixed(4)}</td>
-    </tr>`
+        html += `
+        <tr>
+            <td>${p.symbol}</td>
+            <td class="${cls}">${p.price.toFixed(4)}</td>
+        </tr>`
 
-    lastPrices[p.symbol] = p.price
-})
+        lastPrices[p.symbol] = p.price
+    })
+
+    table.innerHTML = html
 }
 
 // HISTORY
 async function loadHistory(){
-    const res = await fetch("/history")
-    const data = await res.json()
+    let data = await safeFetch("/history")
+    if(!data) return
 
-    if(!data.strategyA || Object.keys(data.strategyA).length === 0){
-        document.getElementById("historyA").innerHTML = "Loading history..."
-        document.getElementById("historyB").innerHTML = "Loading history..."
+    if(!data.strategyA){
+        document.getElementById("historyA").innerHTML = "No history"
+        document.getElementById("historyB").innerHTML = "No history"
         return
     }
 
     renderHistory(data.strategyA, "historyA")
-    renderHistory(data.strategyB, "historyB")
+    renderHistory(data.strategyB || {}, "historyB")
 }
 
-// function renderHistory(data,id){
-//    let el = document.getElementById(id)
-//    el.innerHTML=""
-//
-//   if(!data) return
-//
-//    Object.keys(data).reverse().forEach(d=>{
-//       let pnl = data[d].reduce((a,t)=>a+t.profit,0)
-//        el.innerHTML += `<div>${d} | ${pnl.toFixed(2)}</div>`
-//    })
-//}
-
-// BALANCE
-async function loadBalance(){
-    let data = await safeFetch("/history")
-    if(!data) return
-
-    let bal=2000
-    Object.values(data.strategyA).forEach(day=>{
-        day.forEach(t=> bal+=t.profit)
-    })
-
-    document.getElementById("balance").innerText = "$"+bal.toFixed(2)
-}
-
-// CALC
-function calc(){
-    let inv=parseFloat(inv.value)||0
-    let entry=parseFloat(entry.value)||0
-    let tp=parseFloat(tp.value)||0
-    let sl=parseFloat(sl.value)||0
-    let lev=parseFloat(lev.value)||1
-
-    let qty=(inv*lev)/entry
-    let profit=(tp-entry)*qty
-    let loss=(sl-entry)*qty
-
-    result.innerHTML =
-    `<div class="green">$${profit.toFixed(2)}</div>
-     <div class="red">$${loss.toFixed(2)}</div>`
-}
-
+// RENDER HISTORY
 function renderHistory(data, id){
     let container = document.getElementById(id)
-
-    if(!container) return
 
     container.innerHTML = ""
 
@@ -353,6 +304,58 @@ function renderHistory(data, id){
         Balance:$${balance.toFixed(2)}
         </div>`
     })
+}
+
+// BALANCE
+async function loadBalance(){
+    let data = await safeFetch("/history")
+    if(!data) return
+
+    let bal=2000
+    Object.values(data.strategyA || {}).forEach(day=>{
+        day.forEach(t=> bal+=t.profit)
+    })
+
+    document.getElementById("balance").innerText = "$"+bal.toFixed(2)
+}
+
+// CALCULATOR
+function calc(){
+    let inv=parseFloat(inv.value)||0
+    let entry=parseFloat(entry.value)||0
+    let tp=parseFloat(tp.value)||0
+    let sl=parseFloat(sl.value)||0
+    let lev=parseFloat(lev.value)||1
+
+    let qty=(inv*lev)/entry
+    let profit=(tp-entry)*qty
+    let loss=(sl-entry)*qty
+
+    result.innerHTML =
+    `<div class="green">$${profit.toFixed(2)}</div>
+     <div class="red">$${loss.toFixed(2)}</div>`
+}
+
+function compoundCalc(){
+    let start=parseFloat(c_start.value)||0
+    let risk=(parseFloat(c_risk.value)||0)/100
+    let win=(parseFloat(c_winrate.value)||0)/100
+    let trades=parseInt(c_trades.value)||0
+    let days=parseInt(c_days.value)||0
+
+    let bal=start
+    let out=""
+
+    for(let d=1; d<=days; d++){
+        for(let t=0;t<trades;t++){
+            if(Math.random()<win) bal+=bal*risk
+            else bal-=bal*risk
+        }
+        out += `Day ${d}: $${bal.toFixed(2)}<br>`
+    }
+
+    compoundResult.innerHTML =
+    `<div class="green">$${bal.toFixed(2)}</div>${out}`
 }
 
 // LOOP
