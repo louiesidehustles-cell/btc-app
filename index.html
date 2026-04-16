@@ -87,7 +87,7 @@ th { color:#888; }
 <body>
 
 <div class="topbar">
-    <div>Balance: <span id="balance">$2000</span></div>
+    <div>Balance: <span id="balance">Loading...</span></div>
     <div>Active Trades: <span id="activeTrades">0</span></div>
     <div>Timezone: <span id="tz"></span></div>
 </div>
@@ -205,6 +205,18 @@ async function loadTrades(){
 
     document.getElementById("activeTrades").innerText = count
 }
+//==== balance update =====
+async function loadBalance(){
+    try{
+        const res = await fetch("/balance")
+        const data = await res.json()
+
+        document.getElementById("balance").innerText =
+            "$" + data.balance.toFixed(2)
+    }catch(e){
+        console.log("Balance error", e)
+    }
+}
 
 // ===== PRICES =====
 async function loadPrices(){
@@ -308,10 +320,12 @@ function update(){
     loadTrades()
     loadPrices()
     loadHistory()
+    loadBalance()   // 🔥 THIS WAS MISSING
 }
 
 setInterval(update,4000)
 update()
+loadBalance()
 
 loadChart("BTCUSDT")
 
