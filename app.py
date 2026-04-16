@@ -62,9 +62,9 @@ def save_prices():
     save_json(PRICE_FILE, data)
 
 # ===== INDICATORS =====
-def get_klines(symbol):
+def get_klines(symbol, limit=500):
     url = "https://api.binance.com/api/v3/klines"
-    params = {"symbol": symbol, "interval": "5m", "limit": 50}
+    params = {"symbol": symbol, "interval": "5m", "limit": limit}
     return requests.get(url, params=params).json()
 
 def ema(prices, period):
@@ -205,15 +205,13 @@ def generate_backtest_history(days=2):
     print("⚡ Generating backtest history...")
 
     history = {}
-
     symbols = ["BTCUSDT","ETHUSDT","SOLUSDT"]
 
     for sym in symbols:
 
-        klines = get_klines(sym, "5m", 600)  # ~2 days
+        klines = get_klines(sym)  # ✅ FIXED
 
         closes = [float(k[4]) for k in klines]
-        volumes = [float(k[5]) for k in klines]
         times = [k[0] for k in klines]
 
         open_trade = None
@@ -222,26 +220,20 @@ def generate_backtest_history(days=2):
 
             price = closes[i]
 
-            ema20 = calculate_ema(closes[:i], 20)[-1]
-            ema50 = calculate_ema(closes[:i], 50)[-1]
-            rsi = calculate_rsi(closes[:i])
+            ema20 = ema(closes[:i], 20)[-1]   # ✅ FIXED
+            ema50 = ema(closes[:i], 50)[-1]
+            rsi_val = rsi(closes[:i])         # ✅ FIXED
 
-            avg_vol = sum(volumes[i-10:i]) / 10
-            current_vol = volumes[i]
-
-            volatility = get_volatility(closes[:i])
-            cfg = get_dynamic_thresholds(volatility)
-
-            risk = calculate_risk(price, ema20, ema50, rsi, current_vol, avg_vol)
+            risk = calculate_risk(price, ema20, ema50, rsi_val)
 
             # ===== OPEN TRADE =====
             if not open_trade:
 
-                if risk >= 3 and price > ema20 and rsi < cfg["rsi_high"]:
-                    
+                if risk >= 3 and price > ema20 and rsi_val < 70:
+
                     entry = price
-                    sl = entry * (1 - cfg["sl"])
-                    tp = entry * (1 + cfg["tp"])
+                    sl = entry * 0.995
+                    tp = entry * 1.01
 
                     open_trade = {
                         "symbol": sym,
@@ -277,10 +269,7 @@ def generate_backtest_history(days=2):
                     open_trade = None
 
     save_json(HISTORY_FILE, history)
-
     print("✅ Backtest complete")
-
-
 
 # ===== LOOP =====
 def bot_loop():
@@ -345,9 +334,13 @@ def login():
 if __name__ == "__main__":
     init_files()
 
-    # 🔥 RESET HISTORY + GENERATE REAL BACKTEST
-    generate_backtest_history(days=2)
+    # 🔥 SAFE BACKTEST (no crash if error)
+    try:
+        generate_backtest_history(days=2)
+    except Exception as e:
+        print("BACKTEST ERROR:", e)
 
+    # 🚀 start bot loop
     threading.Thread(target=bot_loop, daemon=True).start()
 
     port = int(os.environ.get("PORT", 8080))
