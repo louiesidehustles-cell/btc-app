@@ -119,7 +119,7 @@ def check_signal():
     if len(data["open_trades"]) >= 5:
         return  # limit trades
 
-    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","CFXUSDT"]
+    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","CFXUSDT"]
 
     for sym in symbols:
 
@@ -144,14 +144,18 @@ def check_signal():
 
         # ===== STRATEGY =====
 
-        if price > ema20 > ema50 and rsi < 65 and current_vol > avg_vol:
-            direction = "BUY"
+        # ===== STRATEGY =====
 
-        elif price < ema20 < ema50 and rsi > 35 and current_vol > avg_vol:
-            direction = "SELL"
-
-        else:
+        if not (price > ema20 > ema50):
             continue
+
+        if rsi >= 65:
+            continue
+
+        if current_vol <= avg_vol:
+            continue
+
+        direction = "BUY"
 
         entry = price
 
@@ -486,7 +490,7 @@ def check_signal():
     if len(data["open_trades"]) >= 5:
         return  # limit trades
 
-    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","CFXUSDT"]
+    symbols = ["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT","CFXUSDT"]
 
     for sym in symbols:
 
