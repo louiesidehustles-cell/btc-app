@@ -317,24 +317,41 @@ async function loadHistory() {
     }
 }
 // CALC
-function calc(){
-    let inv = +inv.value
-    let entry = +entry.value
-    let sl = +sl.value
-    let tp = +tp.value
+function calculateTrade() {
+    const calcResult = document.getElementById("calcResult")
 
-    if(!inv||!entry||!sl||!tp){
-        result.innerHTML="❌ fill all"
+    const inv = parseFloat(document.getElementById("inv").value)
+    const entry = parseFloat(document.getElementById("entryCalc").value)
+    const sl = parseFloat(document.getElementById("slCalc").value)
+    const tp = parseFloat(document.getElementById("tpCalc").value)
+    const lev = parseFloat(document.getElementById("lev").value)
+
+    if (!inv || !entry || !sl || !tp || !lev) {
+        calcResult.innerHTML = "❌ Fill all fields"
         return
     }
 
-    let qty = inv/entry
-    let profit = (tp-entry)*qty
-    let loss = (sl-entry)*qty
+    // ✅ position size with leverage
+    const positionSize = inv * lev
 
-    result.innerHTML = `
-    <div class="green">TP: $${profit.toFixed(2)}</div>
-    <div class="red">SL: $${loss.toFixed(2)}</div>`
+    // ✅ quantity of asset
+    const qty = positionSize / entry
+
+    // ✅ profit & loss
+    const profit = (tp - entry) * qty
+    const loss = (sl - entry) * qty
+
+    // ✅ percentage based on initial capital (NOT leveraged size)
+    const profitPct = (profit / inv) * 100
+    const lossPct = (loss / inv) * 100
+    const rr = Math.abs(profit / loss)
+
+    calcResult.innerHTML += `
+        <div style="color:#f1c40f;">R:R = ${rr.toFixed(2)}</div>
+        <div class="green">💰 Profit: $${profit.toFixed(2)} (${profitPct.toFixed(2)}%)</div>
+        <div class="red">🛑 Loss: $${loss.toFixed(2)} (${lossPct.toFixed(2)}%)</div>
+        <div style="color:#888;">Position Size: $${positionSize.toFixed(2)}</div>
+    `
 }
 
 // LOOP
